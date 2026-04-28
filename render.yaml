@@ -1,0 +1,75 @@
+services:
+  - type: web
+    name: vk-micro-habits-bot
+    runtime: python
+    region: frankfurt
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: python -m app.cli init-db && gunicorn app.main:app -k uvicorn.workers.UvicornWorker --bind 0.0.0.0:$PORT --workers 1 --timeout 60
+    healthCheckPath: /healthz
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: vk-micro-habits-db
+          property: connectionString
+      - key: VK_GROUP_TOKEN
+        sync: false
+      - key: VK_CONFIRMATION_TOKEN
+        sync: false
+      - key: VK_SECRET
+        sync: false
+      - key: VK_GROUP_ID
+        sync: false
+      - key: BOT_NAME
+        value: Мелкодел
+      - key: VK_API_VERSION
+        value: "5.199"
+      - key: DEFAULT_TIMEZONE
+        value: Europe/Moscow
+      - key: DEFAULT_DAILY_TIME
+        value: "09:00"
+      - key: DEFAULT_REMINDER_TIME
+        value: "20:00"
+      - key: ENABLE_INTERNAL_SCHEDULER
+        value: "false"
+      - key: ADMIN_TOKEN
+        generateValue: true
+      - key: CRON_SECRET
+        generateValue: true
+
+  - type: cron
+    name: vk-micro-habits-bot-cron
+    runtime: python
+    region: frankfurt
+    schedule: "*/5 * * * *"
+    buildCommand: pip install -r requirements.txt
+    startCommand: python -m app.cli run-due
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: vk-micro-habits-db
+          property: connectionString
+      - key: VK_GROUP_TOKEN
+        fromService:
+          name: vk-micro-habits-bot
+          type: web
+          envVarKey: VK_GROUP_TOKEN
+      - key: BOT_NAME
+        value: Мелкодел
+      - key: VK_API_VERSION
+        value: "5.199"
+      - key: DEFAULT_TIMEZONE
+        value: Europe/Moscow
+      - key: DEFAULT_DAILY_TIME
+        value: "09:00"
+      - key: DEFAULT_REMINDER_TIME
+        value: "20:00"
+      - key: ENABLE_INTERNAL_SCHEDULER
+        value: "false"
+
+databases:
+  - name: vk-micro-habits-db
+    region: frankfurt
+    plan: basic-256mb
+    databaseName: vk_micro_habits
+    user: vk_micro_habits_user
